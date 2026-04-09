@@ -17,7 +17,7 @@ This Sprint 1 delivers the core end-to-end defect lifecycle:
 - ✅ RESTful API for all operations (`/api/defects/`)
 
 ## How to Run
-1. Activate virtual environment: run `python -m venv venv` and then run `.\venv\Scripts\activate` and then run `pip install Django==6.0.2 djangorestframework`
+1. Activate virtual environment: run `python -m venv venv` and then run `.\venv\Scripts\activate` and then run `pip install Django==6.0.2 djangorestframework django-filter`
 reminder:
 2. Run the server: `python manage.py runserver`
 3. Admin panel: http://127.0.0.1:8000/admin/  

@@ -9,14 +9,15 @@ from rest_framework.decorators import action
 from .state_machine import is_transition_allowed, ROLE_OWNER, ROLE_DEVELOPER  
 from rest_framework.response import Response
 from rest_framework import status
-
-
+from django_filters import rest_framework as filters
 
 # ====================== Defect API ======================
 class DefectViewSet(viewsets.ModelViewSet):
     serializer_class = DefectSerializer
     permission_classes = [IsAuthenticated]
-
+    filter_backends=(filters.DjangoFilterBackend,)
+    filterset_fields=['status','priority','tester_id','severity','assigned_to','title']
+    search_fields=['title','description']
     def get_queryset(self):
         user = self.request.user
 
