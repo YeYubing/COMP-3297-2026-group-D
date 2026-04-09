@@ -10,5 +10,5 @@ router.register(r'products', ProductViewSet, basename='product')
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),  
-    path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),    # 所有 API 都放在 /api/ 下面
+    path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),  
 ]

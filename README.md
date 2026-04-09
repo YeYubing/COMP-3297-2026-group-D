@@ -1,4 +1,4 @@
-# # COMP-3297-2026-group-D BetaTrax Sprint 1
+# # COMP-3297-2026-group-D BetaTrax Sprint 2
 
 ## Project Overview
 BetaTrax is a defect tracking system developed using **Django 6.0.2** and **Django Rest Framework (DRF)**.
@@ -18,10 +18,12 @@ This Sprint 1 delivers the core end-to-end defect lifecycle:
 
 ## How to Run
 1. Activate virtual environment: run `python -m venv venv` and then run `.\venv\Scripts\activate` and then run `pip install Django==6.0.2 djangorestframework`
+reminder:
 2. Run the server: `python manage.py runserver`
 3. Admin panel: http://127.0.0.1:8000/admin/  
    (Username: `admin` / Password: `admin123abc`)
-4. API endpoint: http://127.0.0.1:8000/api/defects/
+4. API endpoint: http://127.0.0.1:8000/api/defects/ -->this one for defects
+5. http://127.0.0.1:8000/api/products/ -->this one for owner to add new products
 
 ## Limitations (Sprint 1)
 - Only supports **one registered product** (registered via Django Admin)
