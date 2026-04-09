@@ -5,7 +5,7 @@ from .models import Defect, Product, Comment, User
 class ProductSerializer(serializers.ModelSerializer):
     owner = serializers.StringRelatedField(read_only=True)
     developers = serializers.PrimaryKeyRelatedField(
-        many=True, queryset=User.objects.all(), required=False
+        many=True, queryset=User.objects.filter(groups__name='Developer'), required=False
     )
 
     class Meta:
