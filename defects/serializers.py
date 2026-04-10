@@ -1,13 +1,19 @@
 from rest_framework import serializers
 from .models import Defect, Product, Comment, User
 
+
+
+
 # ====================== Product Serializer ======================
+
 class ProductSerializer(serializers.ModelSerializer):
     owner = serializers.StringRelatedField(read_only=True)
     developers = serializers.PrimaryKeyRelatedField(
-        many=True, queryset=User.objects.filter(groups__name='Developer'), required=False
+        many=True,
+        queryset=User.objects.filter(groups__name='Developer'),
+        required=False
     )
-
+    
     class Meta:
         model = Product
         fields = [
@@ -20,6 +26,16 @@ class ProductSerializer(serializers.ModelSerializer):
             'created_at'
         ]
         read_only_fields = ['id', 'date_reported', 'date_fixed', 'tester_id']
+
+    def validate_developers(self, value):
+        instance = self.instance
+        for user in value:
+            other_products = user.developed_products.exclude(pk=instance.pk if instance else None)
+            if other_products.exists():
+                raise serializers.ValidationError(
+                    f"User {user.username} is already a developer for product {other_products.first()}"
+                )
+        return value
 
 # ====================== CommentSerializer  ======================
 class CommentSerializer(serializers.ModelSerializer):
@@ -63,6 +79,7 @@ class DefectSerializer(serializers.ModelSerializer):
         # ==================== Tester  ====================
         if user.groups.filter(name='Tester').exists():
             if method == 'POST':
+                # Tester 在提交時，只顯示允許填寫的欄位
                 fields_to_hide = ['version', 'status', 'severity', 'priority', 'date_fixed', 'assigned_to']
                 for field in fields_to_hide:
                     fields.pop(field, None)
