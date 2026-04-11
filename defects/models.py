@@ -46,7 +46,7 @@ class Defect(models.Model):
     tester_id = models.CharField(max_length=100, verbose_name="Tester ID")
     tester_email = models.TextField(blank=True, help_text="Multiple mailboxes are separated by commas")
 
-    version = models.CharField(max_length=20, verbose_name="Version")
+    product_name&version = models.CharField(max_length=20, verbose_name="Version")
 
     SEVERITY_CHOICES = [
         ('low', 'Low'), ('minor', 'Minor'), ('major', 'Major'), ('critical', 'Critical')
