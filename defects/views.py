@@ -234,3 +234,11 @@ class ProductViewSet(viewsets.ModelViewSet):
         developers_ids = self.request.data.get('developers', None)
         if developers_ids is not None:
             product.developers.set(developers_ids)
+
+    def create(self, request, *args, **kwargs):
+        if not request.user.groups.filter(name='Product Owner').exists():
+            return Response(
+                {'error': 'Only product owners can register products.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().create(request, *args, **kwargs)
