@@ -171,17 +171,12 @@ class DefectViewSet(viewsets.ModelViewSet):
         tester_id_value = str(self.request.user.id)
         serializer.save(tester_id=tester_id_value, tester_email=self.request.user.email)
         product = serializer.validated_data.get('product')
-        if product:
-            version = product.version
-        else:
-            version = ''  
-        serializer.save(
+rm -rf new        serializer.save(
             tester_id=str(self.request.user.id),
             tester_email=self.request.user.email,
             status='new',
             severity=None,
-            priority=None,
-            version=version   
+            priority=None
         )
 
     @staticmethod

@@ -56,11 +56,11 @@ class DefectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Defect
         fields = [
-            'id', 'product', 'version', 'title', 'description', 'steps_to_reproduce',
+            'id', 'product', 'title', 'description', 'steps_to_reproduce',
             'tester_id', 'tester_email', 'severity', 'priority', 'status','target_defect_id',
             'assigned_to', 'date_reported', 'date_fixed', 'comments', 'new_comment'
         ]
-        read_only_fields = ['id', 'date_reported', 'date_fixed', 'tester_id', 'version']
+        read_only_fields = ['id', 'date_reported', 'date_fixed', 'tester_id']
     
     def create(self, validated_data):
         validated_data.pop('new_comment', None)
@@ -80,7 +80,7 @@ class DefectSerializer(serializers.ModelSerializer):
         # ==================== Tester  ====================
         if user.groups.filter(name='Tester').exists():
             if method == 'POST':
-                fields_to_hide = ['version', 'status', 'severity', 'priority', 'date_fixed', 'assigned_to']
+                fields_to_hide = ['status', 'severity', 'priority', 'date_fixed', 'assigned_to']
                 for field in fields_to_hide:
                     fields.pop(field, None)
 

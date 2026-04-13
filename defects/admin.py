@@ -8,7 +8,6 @@ class DefectAdmin(admin.ModelAdmin):
     list_display = ['id', 'title', 'status', 'severity', 'priority', 'assigned_to', 'date_reported']
     list_filter = ['status', 'severity', 'priority']
     search_fields = ['title', 'description', 'tester_email']
-    exclude = ['version']
     
     def save_model(self, request, obj, form, change):
         if obj.product:
