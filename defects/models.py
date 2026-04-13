@@ -8,7 +8,7 @@ import uuid
 
 # ==================== Product Model (Sprint 2) ====================
 class Product(models.Model):
-    product_id = models.CharField(max_length=50, verbose_name="Product ID")   # 移除 unique=True
+    product_id = models.CharField(max_length=50, verbose_name="Product ID")   
     version = models.CharField(max_length=20, verbose_name="Version")
 
     owner = models.ForeignKey(
