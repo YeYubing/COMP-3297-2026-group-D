@@ -238,16 +238,8 @@ class ProductViewSet(viewsets.ModelViewSet):
         return Product.objects.none()
 
     def perform_create(self, serializer):
-        product = serializer.save(owner=self.request.user)
-        developers_ids = self.request.data.get('developers', [])
-        if developers_ids:
-            product.developers.set(developers_ids)
-    
-    def perform_update(self, serializer):
-        product = serializer.save()
-        developers_ids = self.request.data.get('developers', None)
-        if developers_ids is not None:
-            product.developers.set(developers_ids)
+        serializer.save(owner=self.request.user)
+
 
     def create(self, request, *args, **kwargs):
         if not request.user.groups.filter(name='Product Owner').exists():

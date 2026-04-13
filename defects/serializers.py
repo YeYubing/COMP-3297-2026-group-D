@@ -37,6 +37,21 @@ class ProductSerializer(serializers.ModelSerializer):
                     f"User {user.username} is already a developer for product {other_products.first()}"
                 )
         return value
+    
+    def create(self, validated_data):
+        developers = validated_data.pop('developers', [])
+        product = Product.objects.create(**validated_data)
+        product.developers.set(developers)
+        return product
+
+    def update(self, instance, validated_data):
+        developers = validated_data.pop('developers', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        if developers is not None:
+            instance.developers.set(developers)
+        return instance
 
 # ====================== CommentSerializer  ======================
 class CommentSerializer(serializers.ModelSerializer):
