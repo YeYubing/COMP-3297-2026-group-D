@@ -1,4 +1,4 @@
-from django.test import TestCase
+from django.test import TestCase, RequestFactory
 from django.contrib.auth.models import User, Group
 from unittest.mock import patch, Mock
 
@@ -23,12 +23,17 @@ class dev_metrics_test(TestCase):
     
     def get_rating(self, fixed_count, reopened_count):
       
-        with patch('your_app.views.DefectHistory.objects.filter') as mock_filter:
-            mock_filter.side_effect = [
-                Mock(count = Mock(return_value = fixed_count)),
-                Mock(count = Mock(return_value = reopened_count))
-            ]
-            response = self.view.developer_metrics(None, user_id=self.developer.id)
+        factory = RequestFactory()
+        request = factory.get('/')
+        request.user = self.developer
+    
+        with patch('defects.views.DefectHistory.objects.filter') as mock_filter:
+            mock_queryset = Mock()
+            mock_queryset.count.side_effect = [fixed_count, reopened_count]
+        
+            mock_filter.return_value = mock_queryset
+        
+            response = self.view.developer_metrics(request, user_id=self.developer.id)
             return response.data['rating']
 
   
@@ -77,7 +82,7 @@ class dev_metrics_test(TestCase):
                 self.assertEqual(rating, "Fair")
     
     
-    def test_poor_rating_class(self):
+    def test_poor(self):
 
         test_cases = [
             (32, 4),      # Lower boundary: exactly 1/8
@@ -92,3 +97,31 @@ class dev_metrics_test(TestCase):
                 rating = self.get_rating(fixed, reopened)
                 self.assertEqual(rating, "Poor")
     
+def test_boundary_values(self):
+
+    rating_below = self.get_rating(19, 0)
+    self.assertEqual(rating_below, "Insufficient data")
+    
+    rating_at = self.get_rating(20, 0)
+    self.assertEqual(rating_at, "Good")
+    
+    rating_above = self.get_rating(21, 0)
+    self.assertEqual(rating_above, "Good")
+    
+    rating_below = self.get_rating(33, 1)
+    self.assertEqual(rating_below, "Good")
+    
+    rating_at = self.get_rating(32, 1)
+    self.assertEqual(rating_at, "Fair")
+    
+    rating_above = self.get_rating(31, 1)
+    self.assertEqual(rating_above, "Fair")
+    
+    rating_below = self.get_rating(41, 5)
+    self.assertEqual(rating_below, "Fair")
+    
+    rating_at = self.get_rating(32, 4)
+    self.assertEqual(rating_at, "Poor")
+    
+    rating_above = self.get_rating(31, 4)
+    self.assertEqual(rating_above, "Poor")
