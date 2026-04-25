@@ -21,7 +21,7 @@ This Sprint 1 delivers the core end-to-end defect lifecycle:
 2. Run the server: `python manage.py runserver`
 3. Admin panel: http://127.0.0.1:8000/admin/  
    (Username: `admin` / Password: `admin123abc`)
-4. API endpoint: http://127.0.0.1:8000/api/defects/
+4. API endpoint: http://127.0.0.1:8000/api/defects/   ， http://127.0.0.1:8000/api/products/
 
 ## Limitations (Sprint 1)
 - Only supports **one registered product** (registered via Django Admin)
@@ -41,3 +41,97 @@ See `requirements.txt` for all installed packages.
 - All required slices from the Task Sheet have been implemented.
 
 ---
+
+## How to Run PostgreSQL Multi-Tenants (Local Development)
+
+1. **Set up the database**
+   - Make sure PostgreSQL is running. Then create the database and user (example using psql):
+
+     ```sql
+     CREATE USER betatrax_user WITH PASSWORD 'your_password';
+     CREATE DATABASE betatrax_db OWNER betatrax_user;
+     ALTER USER betatrax_user CREATEDB;
+     ```
+
+     *Note: Update line 67 in settings.py with the PASSWORD set to 'your_password'*
+
+2. **Clone / unzip the project and create a virtual environment**
+
+   ```bash
+   python -m venv venv
+   # Windows
+   .\venv\Scripts\activate
+   # macOS/Linux
+   source venv/bin/activate
+   ```
+
+3. **Install dependencies**
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+   *(requirements.txt includes Django, DRF, django-tenants, psycopg2-binary, coverage, etc.)*
+
+4. **Configure database (if needed)**
+   - Open `BetaTrax/settings.py` and verify the DATABASES section matches your PostgreSQL credentials.
+   - The engine must be `django_tenants.postgresql_backend`.
+
+5. **Apply migrations**
+
+   ```bash
+   python manage.py makemigrations tenants defects
+   python manage.py migrate_schemas
+   ```
+
+6. **Create a superuser (shared across all tenants)**
+
+   ```bash
+   python manage.py createsuperuser
+   ```
+
+7. **Create your first tenant and domain**
+
+   ```bash
+   python manage.py shell
+   ```
+
+   Inside the shell:
+
+   ```python
+   from tenants.models import Client, Domain
+
+   tenant = Client(schema_name='dev', name='Dev Company')
+   tenant.save()
+
+   domain = Domain()
+   domain.domain = 'dev.localhost'
+   domain.tenant = tenant
+   domain.is_primary = True
+   domain.save()
+   exit()
+   ```
+
+8. **Update your local hosts file**
+   - Add the following line to the last row of your hosts file:
+     - Windows: `C:\Windows\System32\drivers\etc\hosts`
+     - macOS/Linux: `/etc/hosts`
+
+     ```
+     127.0.0.1  dev.localhost
+     ```
+
+9. **Run the server**
+
+   ```bash
+   python manage.py runserver
+   ```
+
+10. **Access the application**
+    - Admin panel: http://dev.localhost:8000/admin/ (use the superuser you created)
+    - API endpoints:
+      - http://dev.localhost:8000/api/defects/
+      - http://dev.localhost:8000/api/products/
+
+To add more tenants (e.g., test1.localhost), repeat steps 7–8 with a different schema_name and domain.
+

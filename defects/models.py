@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.core.mail import send_mail
+from django_tenants.models import DomainMixin, TenantMixin
 
 
 # ==================== Product Model (Sprint 2) ====================
@@ -78,6 +79,23 @@ class Defect(models.Model):
         verbose_name = "Defect"
         verbose_name_plural = "Defects"
 
+
+# ==================== Tenant Model (Sprint 3 - 必须正确配置) ====================
+# class Client(TenantMixin):
+#     name = models.CharField(max_length=100)
+#     paid_until = models.DateField(null=True, blank=True)
+#     on_trial = models.BooleanField(default=True)
+#     auto_create_schema = True
+
+#     class Meta:
+#         verbose_name = 'Client (Tenant)'
+#         verbose_name_plural = 'Clients (Tenants)'
+
+#     def __str__(self):
+#         return self.name
+
+# class Domain(DomainMixin):
+#     pass
 
 # ==================== Email Notification ====================
 @receiver(post_save, sender=Defect)

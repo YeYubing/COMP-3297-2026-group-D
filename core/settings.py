@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 
+import tenants  
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -30,18 +32,47 @@ ALLOWED_HOSTS = []
 
 # Application definition
 
-INSTALLED_APPS = [
+
+# ==================== django-tenants 多租户配置（Sprint 3 必须）====================
+SHARED_APPS = [
+    'django_tenants',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'defects',
-    'rest_framework',
+    'rest_framework',   
+    'tenants',     
 ]
 
+TENANT_APPS = [
+    'defects',              
+]
+
+INSTALLED_APPS = SHARED_APPS + TENANT_APPS
+
+# TENANT_MODEL = "django_tenants.Tenant"
+TENANT_MODEL = "tenants.Client"
+TENANT_DOMAIN_MODEL = "tenants.Domain"
+# ==================== django-tenants 路由器（必须加）====================
+DATABASE_ROUTERS = ['django_tenants.routers.TenantSyncRouter']
+
+# ==================== 数据库配置（改成 PostgreSQL）====================
+DATABASES = {
+    'default': {
+        'ENGINE': 'django_tenants.postgresql_backend',   # ← 必须用这个 engine
+        'NAME': 'betatrax_db',                           # 你新建的数据库名
+        'USER': 'postgres',
+        'PASSWORD': 'Tqwcxe20050812',          # ←←← 改成你连接 pgAdmin 时用的密码
+        'HOST': 'localhost',
+        'PORT': '5432',
+    }
+}
+
+
 MIDDLEWARE = [
+    'django_tenants.middleware.main.TenantMainMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -73,12 +104,12 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
 
 
 # Password validation
