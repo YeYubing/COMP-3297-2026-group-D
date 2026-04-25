@@ -11,18 +11,19 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
-
-import tenants  
+from dotenv import load_dotenv
+import os  
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
+# setup the environment variables folder.
+load_dotenv(os.path.join(BASE_DIR, '.env'))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-eveb7mpo#fl0bcnw)4%&fv3e5$dbobd7z@vk)6qqia&rg#hi2%'
+SECRET_KEY = ''
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -42,8 +43,8 @@ SHARED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'rest_framework',   
-    'tenants',     
+    'rest_framework',
+    'tenants',
 ]
 
 TENANT_APPS = [
@@ -64,7 +65,7 @@ DATABASES = {
         'ENGINE': 'django_tenants.postgresql_backend',   # ← 必须用这个 engine
         'NAME': 'betatrax_db',                           # 你新建的数据库名
         'USER': 'postgres',
-        'PASSWORD': 'Tqwcxe20050812',          # ←←← 改成你连接 pgAdmin 时用的密码
+        'PASSWORD': '',          # ←←← 改成你连接 pgAdmin 时用的密码
         'HOST': 'localhost',
         'PORT': '5432',
     }
@@ -101,8 +102,6 @@ TEMPLATES = [
 WSGI_APPLICATION = 'core.wsgi.application'
 
 
-# Database
-# https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 # DATABASES = {
 #     'default': {
@@ -112,8 +111,6 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # }
 
 
-# Password validation
-# https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -131,8 +128,6 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-# Internationalization
-# https://docs.djangoproject.com/en/6.0/topics/i18n/
 
 LANGUAGE_CODE = 'en-us'
 
@@ -143,26 +138,35 @@ USE_I18N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
 
+# settings.py
 
-# Email 設定（Sprint 1 用 console 測試，不用真的寄信）
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-EMAIL_HOST = 'localhost'
-EMAIL_PORT = 25
-DEFAULT_FROM_EMAIL = 'betatrax@example.com'
+# SMTP Backend configuration
+EMAIL_BACKEND =os.getenv('EMAIL_BACKEND')
+
+
+EMAIL_HOST = os.getenv('EMAIL_HOST')
+EMAIL_PORT = os.getenv('EMAIL_PORT')
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS')
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD') # app password
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL')
 
 
 # ==================== Sprint 2 User Authentication ====================
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.SessionAuthentication',  # 使用 Django 的登入 session
+        'rest_framework.authentication.SessionAuthentication', 
     ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',   # 只有登入後才能使用 API
+        'rest_framework.permissions.IsAuthenticated',   
     ],
+    'DEFAULT_FILTER_BACKENDS': (
+        'django_filters.rest_framework.DjangoFilterBackend',
+    ),
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10,
     'LOGIN_URL': 'api-auth/login/',
 }
