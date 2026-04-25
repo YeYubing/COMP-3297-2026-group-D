@@ -3,17 +3,10 @@ Test automation run instructions:
 
 Preconditions:
 1) python/python3 intsalled
-2) have coverage installed (pip install coverage) 
 
 Run instructions:
-1) run "python manage.py test defects.test_dev_metrics" for normal testing
+1) run "python manage.py test defects.test_api" for normal testing
 
-Run instructions (with coverage):
-1) run "coverage run --source='defects' manage.py test defects.test_dev_metrics"
-2) run "coverage report" to generate report
-3) run "coverage report -m" to see how many line the testing misses
-4) run "coverage html" to generate the report in html
-5) run "open htmlcov/index.html" / "xdg-open htmlcov/index.html" / "start htmlcov/index.html" to view report in MacOS / Linux / Windows
 '''
 
 from django.test import TestCase
