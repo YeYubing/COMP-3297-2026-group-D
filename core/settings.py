@@ -33,19 +33,33 @@ ALLOWED_HOSTS = []
 
 # Application definition
 
-INSTALLED_APPS = [
+SHARED_APPS = [
+    'django_tenants',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'defects',
     'rest_framework',
-    'django_filters'
+    'django_filters',
+    'tenants',
 ]
 
+TENANT_APPS = [
+    'defects',              
+]
+
+INSTALLED_APPS = SHARED_APPS + TENANT_APPS
+
+# TENANT_MODEL = "django_tenants.Tenant"
+TENANT_MODEL = "tenants.Client"
+TENANT_DOMAIN_MODEL = "tenants.Domain"
+# ==================== django-tenants）====================
+DATABASE_ROUTERS = ['django_tenants.routers.TenantSyncRouter']
+
 MIDDLEWARE = [
+    'django_tenants.middleware.main.TenantMainMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -75,10 +89,15 @@ WSGI_APPLICATION = 'core.wsgi.application'
 
 
 
+# ==================== database（PostgreSQL）====================
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django_tenants.postgresql_backend',   
+        'NAME': 'betatrax_db',                           # name of database you created in pgAdmin
+        'USER': 'postgres',
+        'PASSWORD': '',          # change to the password you use for pgAdmin
+        'HOST': 'localhost',
+        'PORT': '5432',
     }
 }
 

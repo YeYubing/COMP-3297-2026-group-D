@@ -221,29 +221,7 @@ class Comment(models.Model):
         return f"Comment by {self.author.username} on {self.defect.id}"
     
 
-# ==================== User ID ====================
-class UserProfile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
-    custom_user_id = models.CharField(max_length=20, unique=True, blank=True, editable=False)
 
-    def __str__(self):
-        return f"{self.user.username} - {self.custom_user_id}"
-
-@receiver(post_save, sender=User)
-def create_user_profile(sender, instance, created, **kwargs):
-    if created:
-        unique_id = uuid.uuid4().hex[:8].upper()
-        UserProfile.objects.create(user=instance, custom_user_id=unique_id)
-    else:
-        if not hasattr(instance, 'profile'):
-            UserProfile.objects.create(user=instance, custom_user_id=uuid.uuid4().hex[:8].upper())
-
-@receiver(post_save, sender=User)
-def save_user_profile(sender, instance, **kwargs):
-    if not hasattr(instance, 'profile'):
-        UserProfile.objects.create(user=instance, custom_user_id=uuid.uuid4().hex[:8].upper())
-    else:
-        instance.profile.save()
 
 
 # ==================== Defect History ====================
