@@ -3,37 +3,27 @@ Test automation run instructions:
 
 Preconditions:
 1) python/python3 installed
-2) Multi-tenant setup with django-tenants
+2) PostgreSQL database with public and dev schemas already created
+3) Multi-tenant setup with django-tenants
 
 Run instructions:
 1) run "python manage.py test defects.test_api" for normal testing
 
 '''
 
-from django.test import TestCase, TransactionTestCase
+from django.test import TestCase
 from django.contrib.auth.models import User, Group
 from rest_framework.test import APIClient
 from rest_framework import status
 from datetime import datetime, timedelta
 from unittest.mock import patch
-from django_tenants.utils import get_tenant_model
 from defects.models import Defect, Product, Comment, DefectHistory
 
-Client = get_tenant_model()
 
-
-class BaseAPITestCase(TransactionTestCase):
-    """Base test case for tenant-aware tests"""
+class BaseAPITestCase(TestCase):
+    """Base test case for API tests"""
     
     def setUp(self):
-        # Create tenant in the public schema
-        self.tenant = Client.objects.create(
-            name='Test Client',
-            schema_name='test_tenant'
-        )
-        # Set this tenant as the context for the test
-        self.tenant.set_connection()
-        
         self.client = APIClient()
         
         # Create groups
@@ -83,13 +73,6 @@ class BaseAPITestCase(TransactionTestCase):
             tester_email=self.tester_user.email,
             status='new'
         )
-
-    def tearDown(self):
-        # Clean up tenant
-        try:
-            self.tenant.delete()
-        except:
-            pass
 
 
 class DefectAPITests(BaseAPITestCase):
