@@ -1,40 +1,36 @@
-from django.test import TestCase
-from django.contrib.auth.models import User, Group
-from rest_framework.test import APIClient
-from rest_framework import status
-from defects.models import Defect, Product
-from django_tenants.utils import tenant_context
-from tenants.models import Client
+# defects/views.py
+from django.db.models import Q
+from rest_framework import viewsets, permissions, status
+from rest_framework.response import Response
+from rest_framework.decorators import action
+from .models import Defect, Product
+from .serializers import DefectSerializer, ProductSerializer
 
-
-class BaseAPITestCase(TestCase):
+class DefectViewSet(viewsets.ModelViewSet):
+    serializer_class = DefectSerializer
+    permission_classes = [permissions.IsAuthenticated]
     
-    def setUp(self):
-        self.tenant, _ = Client.objects.get_or_create(
-            schema_name='standard',
-            defaults={'name': 'Standard Tenant'}
-        )
-
-        # Use APIClient for DRF features
-        self.client = APIClient()
+    def get_queryset(self):
+        user = self.request.user
         
-        # Set the tenant header for every request
-        self.client.defaults['HTTP_X_TENANT'] = self.tenant.schema_name
-
-        with tenant_context(self.tenant):
-            # Create groups
-            self.tester_group, _ = Group.objects.get_or_create(name='Tester')
-            self.developer_group, _ = Group.objects.get_or_create(name='Developer')
-            self.owner_group, _ = Group.objects.get_or_create(name='Product Owner')
-            
-            # Create test users
-            self.tester_user = User.objects.create_user(
-                username='tester1',
-                email='tester1@example.com',
-                password='testpass123'
-            ) 
-            self.tester_user.groups.add(self.tester_group)
-            
+        if user.groups.filter(name='Product Owner').exists():
+            return Defect.objects.filter(product__owner=user).order_by('id')
+        
+        elif user.groups.filter(name='Developer').exists():
+            return Defect.objects.filter(product__developers=user).order_by('id')
+        
+        else:
+            return Defect.objects.filter(
+                Q(tester_email=user.email) | Q(tester_id=str(user.id))
+            ).order_by('id')
+    
+    def perform_create(self, serializer):
+        # Automatically set the tester information from the authenticated user
+        serializer.save(
+            tester_id=str(self.request.user.id),
+            tester_email=self.request.user.email,
+            status='new'
+        )            
             self.developer_user = User.objects.create_user(
                 username='developer1',
                 email='developer1@example.com',
