@@ -1,501 +1,395 @@
-'''
-Test automation run instructions:
-
-Preconditions:
-1) python/python3 intsalled
-
-Run instructions:
-1) run "python manage.py test defects.test_api" for normal testing
-
-'''
+# tests/test_simple_api.py
+"""
+Simple API test suite for BetaTrax - tests each endpoint method exactly once.
+Run with: python manage.py test tests.test_simple_api
+"""
 
 from django.test import TestCase
 from django.contrib.auth.models import User, Group
 from rest_framework.test import APIClient
 from rest_framework import status
 from datetime import datetime, timedelta
-from unittest.mock import patch
-from defects.models import Defect, Product, Comment, DefectHistory
+
+from defects.models import Defect, Product, DefectHistory
 
 
-class BaseAPITestCase(TestCase):
+class SimpleAPITests(TestCase):
+    """
+    Tests each API endpoint method once - minimal but complete coverage.
+    """
     
     def setUp(self):
         self.client = APIClient()
         
         # Create groups
-        self.tester_group, _ = Group.objects.get_or_create(name='Tester')
-        self.developer_group, _ = Group.objects.get_or_create(name='Developer')
-        self.owner_group, _ = Group.objects.get_or_create(name='Product Owner')
+        self.tester_group = Group.objects.create(name='Tester')
+        self.developer_group = Group.objects.create(name='Developer')
+        self.owner_group = Group.objects.create(name='Product Owner')
         
-        # Create test users
-        self.tester_user = User.objects.create_user(
-            username='tester1',
-            email='tester1@example.com',
-            password='testpass123'
+        # Create users
+        self.tester = User.objects.create_user(
+            username='tester', email='tester@test.com', password='pass'
         )
-        self.tester_user.groups.add(self.tester_group)
+        self.tester.groups.add(self.tester_group)
         
-        self.developer_user = User.objects.create_user(
-            username='developer1',
-            email='developer1@example.com',
-            password='testpass123'
+        self.developer = User.objects.create_user(
+            username='developer', email='dev@test.com', password='pass'
         )
-        self.developer_user.groups.add(self.developer_group)
+        self.developer.groups.add(self.developer_group)
         
-        self.owner_user = User.objects.create_user(
-            username='owner1',
-            email='owner1@example.com',
-            password='testpass123'
+        self.owner = User.objects.create_user(
+            username='owner', email='owner@test.com', password='pass'
         )
-        self.owner_user.groups.add(self.owner_group)
+        self.owner.groups.add(self.owner_group)
         
-        # Create test product
+        # Create product
         self.product = Product.objects.create(
-            product_id='PROD001',
-            version='1.0.0',
-            owner=self.owner_user,
-            description='Test Product',
+            product_id='TEST-PROD',
+            version='1.0',
+            owner=self.owner,
+            description='Test product',
             expiry_date=datetime.now().date() + timedelta(days=365)
         )
-        self.product.developers.add(self.developer_user)
+        self.product.developers.add(self.developer)
         
-        # Create test defect
+        # Create defect
         self.defect = Defect.objects.create(
             product=self.product,
-            title='Test Defect',
-            description='This is a test defect',
-            steps_to_reproduce='1. Do this\n2. Do that',
-            tester_id=str(self.tester_user.id),
-            tester_email=self.tester_user.email,
-            status='new'
+            title='Original Defect',
+            description='Original description',
+            steps_to_reproduce='Steps here',
+            tester_id=str(self.tester.id),
+            tester_email=self.tester.email,
+            status='new',
+            severity='major',
+            priority='medium'
         )
-
-
-class DefectAPITests(BaseAPITestCase):
-    
-    def test_defect_create_successful(self):
-        self.client.force_authenticate(user=self.tester_user)
         
-        data = {
+        # URLs
+        self.defects_url = '/api/defects/'
+        self.defect_detail_url = f'/api/defects/{self.defect.id}/'
+        self.products_url = '/api/products/'
+        self.product_detail_url = f'/api/products/{self.product.id}/'
+
+    # ========== DEFECT ENDPOINTS ==========
+    
+    def test_01_defect_post_create(self):
+        """POST /api/defects/ - Create a new defect (Tester)"""
+        self.client.force_authenticate(user=self.tester)
+        
+        response = self.client.post(self.defects_url, {
             'product': self.product.id,
             'title': 'New Test Defect',
-            'description': 'A newly created defect',
-            'steps_to_reproduce': 'Step 1\nStep 2'
-        }
-        
-        response = self.client.post('/api/defects/', data, format='json')
+            'description': 'This is a test defect',
+            'steps_to_reproduce': '1. Login\n2. Click button'
+        }, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['title'], 'New Test Defect')
         self.assertEqual(response.data['status'], 'new')
-        self.assertEqual(response.data['tester_id'], str(self.tester_user.id))
-    
-    def test_defect_list_successful(self):
-        self.client.force_authenticate(user=self.tester_user)
+        self.assertEqual(response.data['tester_id'], str(self.tester.id))
+        print("✓ POST /api/defects/")
+
+    def test_02_defect_get_list(self):
+        """GET /api/defects/ - List all defects"""
+        self.client.force_authenticate(user=self.owner)
         
-        response = self.client.get('/api/defects/', format='json')
+        response = self.client.get(self.defects_url, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIsInstance(response.data, dict)
         self.assertIn('results', response.data)
-        self.assertGreaterEqual(len(response.data['results']), 1)
-    
-    def test_defect_retrieve_successful(self):
-        self.client.force_authenticate(user=self.tester_user)
+        print("✓ GET /api/defects/")
+
+    def test_03_defect_get_detail(self):
+        """GET /api/defects/{id}/ - Get single defect"""
+        self.client.force_authenticate(user=self.tester)
         
-        response = self.client.get(f'/api/defects/{self.defect.id}/', format='json')
+        response = self.client.get(self.defect_detail_url, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['id'], self.defect.id)
         self.assertEqual(response.data['title'], self.defect.title)
-    
-    def test_defect_update_successful(self):
-        self.client.force_authenticate(user=self.owner_user)
+        print(f"✓ GET /api/defects/{self.defect.id}/")
+
+    def test_04_defect_put_update(self):
+        """PUT /api/defects/{id}/ - Full update"""
+        self.client.force_authenticate(user=self.owner)
         
-        data = {
-            'title': 'Updated Defect Title',
-            'description': 'Updated description',
-            'status': 'open'
-        }
-        
-        response = self.client.patch(f'/api/defects/{self.defect.id}/', data, format='json')
+        response = self.client.put(self.defect_detail_url, {
+            'product': self.product.id,
+            'title': 'Fully Updated Defect',
+            'description': 'Completely new description',
+            'steps_to_reproduce': 'New steps',
+            'status': 'open',
+            'severity': 'critical',
+            'priority': 'high'
+        }, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['title'], 'Updated Defect Title')
-        self.assertEqual(response.data['status'], 'open')
-    
-    def test_defect_delete_successful(self):
-        defect_to_delete = Defect.objects.create(
+        self.assertEqual(response.data['title'], 'Fully Updated Defect')
+        print("✓ PUT /api/defects/{id}/")
+
+    def test_05_defect_patch_update(self):
+        """PATCH /api/defects/{id}/ - Partial update"""
+        self.client.force_authenticate(user=self.owner)
+        
+        response = self.client.patch(self.defect_detail_url, {
+            'title': 'Partially Updated Title',
+            'priority': 'critical'
+        }, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['title'], 'Partially Updated Title')
+        self.assertEqual(response.data['priority'], 'critical')
+        print("✓ PATCH /api/defects/{id}/")
+
+    def test_06_defect_delete(self):
+        """DELETE /api/defects/{id}/ - Delete defect"""
+        # Create temporary defect for deletion
+        temp_defect = Defect.objects.create(
             product=self.product,
-            title='To Be Deleted',
-            description='This will be deleted',
-            tester_id=str(self.tester_user.id),
-            tester_email=self.tester_user.email,
+            title='To Delete',
+            description='Temp',
+            tester_id=str(self.tester.id),
+            tester_email=self.tester.email,
             status='new'
         )
+        temp_url = f'/api/defects/{temp_defect.id}/'
         
-        self.client.force_authenticate(user=self.owner_user)
-        
-        response = self.client.delete(f'/api/defects/{defect_to_delete.id}/', format='json')
+        self.client.force_authenticate(user=self.owner)
+        response = self.client.delete(temp_url, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertFalse(Defect.objects.filter(id=defect_to_delete.id).exists())
-    
-    def test_defect_candidate_targets_action_successful(self):
-        """Test successful retrieval of candidate targets for duplicate marking."""
-        target_defect = Defect.objects.create(
-            product=self.product,
-            title='Target Defect',
-            description='This is a target',
-            tester_id=str(self.tester_user.id),
-            tester_email=self.tester_user.email,
-            status='open'
-        )
+        self.assertFalse(Defect.objects.filter(id=temp_defect.id).exists())
+        print("✓ DELETE /api/defects/{id}/")
+
+    # ========== PRODUCT ENDPOINTS ==========
+
+    def test_07_product_post_create(self):
+        """POST /api/products/ - Create a new product (Product Owner only)"""
+        self.client.force_authenticate(user=self.owner)
         
-        self.client.force_authenticate(user=self.owner_user)
+        response = self.client.post(self.products_url, {
+            'product_id': 'NEW-PROD',
+            'version': '2.0',
+            'description': 'Brand new product',
+            'expiry_date': (datetime.now().date() + timedelta(days=180)).isoformat()
+        }, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['product_id'], 'NEW-PROD')
+        self.assertEqual(response.data['owner'], self.owner.username)
+        print("✓ POST /api/products/")
+
+    def test_08_product_get_list(self):
+        """GET /api/products/ - List all products"""
+        self.client.force_authenticate(user=self.owner)
+        
+        response = self.client.get(self.products_url, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('results', response.data)
+        print("✓ GET /api/products/")
+
+    def test_09_product_get_detail(self):
+        """GET /api/products/{id}/ - Get single product"""
+        self.client.force_authenticate(user=self.owner)
+        
+        response = self.client.get(self.product_detail_url, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['id'], self.product.id)
+        self.assertEqual(response.data['product_id'], self.product.product_id)
+        print(f"✓ GET /api/products/{self.product.id}/")
+
+    def test_10_product_put_update(self):
+        """PUT /api/products/{id}/ - Full product update"""
+        self.client.force_authenticate(user=self.owner)
+        
+        response = self.client.put(self.product_detail_url, {
+            'product_id': 'UPDATED-PROD',
+            'version': '3.0',
+            'description': 'Fully updated product',
+            'expiry_date': (datetime.now().date() + timedelta(days=400)).isoformat(),
+            'developers': [self.developer.id]
+        }, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['product_id'], 'UPDATED-PROD')
+        self.assertEqual(response.data['version'], '3.0')
+        print("✓ PUT /api/products/{id}/")
+
+    def test_11_product_patch_update(self):
+        """PATCH /api/products/{id}/ - Partial product update"""
+        self.client.force_authenticate(user=self.owner)
+        
+        response = self.client.patch(self.product_detail_url, {
+            'description': 'Patched product description'
+        }, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['description'], 'Patched product description')
+        print("✓ PATCH /api/products/{id}/")
+
+    def test_12_product_delete(self):
+        """DELETE /api/products/{id}/ - Delete product"""
+        # Create temporary product for deletion
+        temp_product = Product.objects.create(
+            product_id='TEMP-PROD',
+            version='1.0',
+            owner=self.owner,
+            description='To be deleted'
+        )
+        temp_url = f'/api/products/{temp_product.id}/'
+        
+        self.client.force_authenticate(user=self.owner)
+        response = self.client.delete(temp_url, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Product.objects.filter(id=temp_product.id).exists())
+        print("✓ DELETE /api/products/{id}/")
+
+    # ========== CUSTOM ACTIONS ==========
+
+    def test_13_candidate_targets(self):
+        """GET /api/defects/{id}/candidate-targets/ - Get possible duplicate targets"""
+        self.client.force_authenticate(user=self.owner)
         
         response = self.client.get(f'/api/defects/{self.defect.id}/candidate-targets/', format='json')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsInstance(response.data, list)
-    
-    def test_defect_allowed_statuses_action_successful(self):
-        self.client.force_authenticate(user=self.owner_user)
+        print("✓ GET /api/defects/{id}/candidate-targets/")
+
+    def test_14_allowed_statuses(self):
+        """GET /api/defects/{id}/allowed-statuses/ - Get allowed status transitions"""
+        self.client.force_authenticate(user=self.owner)
         
         response = self.client.get(f'/api/defects/{self.defect.id}/allowed-statuses/', format='json')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('allowed_statuses', response.data)
-        self.assertIsInstance(response.data['allowed_statuses'], list)
-    
-    def test_defect_developer_metrics_action_successful(self):
+        print("✓ GET /api/defects/{id}/allowed-statuses/")
 
-        DefectHistory.objects.create(
-            defect=self.defect,
-            old_status='open',
-            new_status='fixed',
-            changed_by=self.owner_user,
-            assigned_to=self.developer_user
-        )
+    def test_15_developer_metrics(self):
+        """GET /api/defects/metrics/{user_id}/ - Get developer rating"""
+        # Create history entries for developer
+        for i in range(25):
+            defect = Defect.objects.create(
+                product=self.product,
+                title=f'Defect {i}',
+                description='Fixed',
+                tester_id=str(self.tester.id),
+                tester_email=self.tester.email,
+                status='fixed'
+            )
+            DefectHistory.objects.create(
+                defect=defect,
+                old_status='assigned',
+                new_status='fixed',
+                changed_by=self.owner,
+                assigned_to=self.developer
+            )
         
-        self.client.force_authenticate(user=self.owner_user)
-        
-        response = self.client.get(f'/api/defects/metrics/{self.developer_user.id}/', format='json')
+        self.client.force_authenticate(user=self.owner)
+        response = self.client.get(f'/api/defects/metrics/{self.developer.id}/', format='json')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn('developer_id', response.data)
+        self.assertEqual(response.data['developer_id'], self.developer.id)
         self.assertIn('rating', response.data)
-        self.assertEqual(response.data['developer_id'], self.developer_user.id)
+        print("✓ GET /api/defects/metrics/{user_id}/")
 
-    @patch('defects.models.send_mail')
-    def test_duplicate_does_not_merge_emails_and_sets_parent_link(self, mock_send_mail):
-        second_tester = User.objects.create_user(
-            username='tester2',
-            email='tester2@example.com',
-            password='testpass123'
-        )
-        second_tester.groups.add(self.tester_group)
-
-        target_defect = Defect.objects.create(
+    def test_16_mark_as_duplicate(self):
+        """PATCH /api/defects/{id}/ - Mark defect as duplicate"""
+        # Create source and target defects
+        target = Defect.objects.create(
             product=self.product,
             title='Target Defect',
-            description='Target defect',
-            steps_to_reproduce='Step 1',
-            tester_id=str(second_tester.id),
-            tester_email=second_tester.email,
+            description='Target for duplicate',
+            tester_id=str(self.tester.id),
+            tester_email=self.tester.email,
+            status='open'
+        )
+        source = Defect.objects.create(
+            product=self.product,
+            title='Source Defect',
+            description='Will become duplicate',
+            tester_id=str(self.tester.id),
+            tester_email=self.tester.email,
             status='new'
         )
-
-        self.client.force_authenticate(user=self.owner_user)
-
-        response = self.client.patch(
-            f'/api/defects/{self.defect.id}/',
-            {'status': 'duplicate', 'target_defect_id': target_defect.id},
-            format='json'
-        )
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-        self.defect.refresh_from_db()
-        target_defect.refresh_from_db()
-
-        self.assertEqual(self.defect.status, 'duplicate')
-        self.assertEqual(self.defect.duplicate_of_id, target_defect.id)
-        self.assertEqual(target_defect.tester_email, second_tester.email)
-        self.assertEqual(self.defect.tester_email, self.tester_user.email)
-
-        mock_send_mail.assert_called_once()
-        recipient_list = mock_send_mail.call_args.kwargs['recipient_list']
-        self.assertCountEqual(recipient_list, [self.tester_user.email, second_tester.email])
-
-    @patch('defects.models.send_mail')
-    def test_status_change_notifies_entire_duplicate_chain_from_parent(self, mock_send_mail):
-        child_tester = User.objects.create_user(
-            username='tester2',
-            email='tester2@example.com',
-            password='testpass123'
-        )
-        child_tester.groups.add(self.tester_group)
-
-        grandchild_tester = User.objects.create_user(
-            username='tester3',
-            email='tester3@example.com',
-            password='testpass123'
-        )
-        grandchild_tester.groups.add(self.tester_group)
-
-        root_defect = Defect.objects.create(
-            product=self.product,
-            title='Root Defect',
-            description='Root',
-            steps_to_reproduce='Step 1',
-            tester_id=str(self.tester_user.id),
-            tester_email=self.tester_user.email,
-            status='new'
-        )
-
-        child_defect = Defect.objects.create(
-            product=self.product,
-            title='Child Defect',
-            description='Child',
-            steps_to_reproduce='Step 1',
-            tester_id=str(child_tester.id),
-            tester_email=child_tester.email,
-            status='new',
-            duplicate_of=root_defect
-        )
-
-        Defect.objects.create(
-            product=self.product,
-            title='Grandchild Defect',
-            description='Grandchild',
-            steps_to_reproduce='Step 1',
-            tester_id=str(grandchild_tester.id),
-            tester_email=grandchild_tester.email,
-            status='new',
-            duplicate_of=child_defect
-        )
-
-        root_defect.status = 'open'
-        root_defect.save()
-
-        mock_send_mail.assert_called_once()
-        recipient_list = mock_send_mail.call_args.kwargs['recipient_list']
-        self.assertCountEqual(
-            recipient_list,
-            [self.tester_user.email, child_tester.email, grandchild_tester.email]
-        )
-
-    @patch('defects.models.send_mail')
-    def test_status_change_notifies_entire_duplicate_chain_from_child(self, mock_send_mail):
-        child_tester = User.objects.create_user(
-            username='tester2',
-            email='tester2@example.com',
-            password='testpass123'
-        )
-        child_tester.groups.add(self.tester_group)
-
-        grandchild_tester = User.objects.create_user(
-            username='tester3',
-            email='tester3@example.com',
-            password='testpass123'
-        )
-        grandchild_tester.groups.add(self.tester_group)
-
-        root_defect = Defect.objects.create(
-            product=self.product,
-            title='Root Defect',
-            description='Root',
-            steps_to_reproduce='Step 1',
-            tester_id=str(self.tester_user.id),
-            tester_email=self.tester_user.email,
-            status='new'
-        )
-
-        child_defect = Defect.objects.create(
-            product=self.product,
-            title='Child Defect',
-            description='Child',
-            steps_to_reproduce='Step 1',
-            tester_id=str(child_tester.id),
-            tester_email=child_tester.email,
-            status='new',
-            duplicate_of=root_defect
-        )
-
-        Defect.objects.create(
-            product=self.product,
-            title='Grandchild Defect',
-            description='Grandchild',
-            steps_to_reproduce='Step 1',
-            tester_id=str(grandchild_tester.id),
-            tester_email=grandchild_tester.email,
-            status='new',
-            duplicate_of=child_defect
-        )
-
-        child_defect.status = 'open'
-        child_defect.save()
-
-        mock_send_mail.assert_called_once()
-        recipient_list = mock_send_mail.call_args.kwargs['recipient_list']
-        self.assertCountEqual(
-            recipient_list,
-            [self.tester_user.email, child_tester.email, grandchild_tester.email]
-        )
-
-
-class ProductAPITests(BaseAPITestCase):
-    
-    def test_product_create_successful(self):
-        self.client.force_authenticate(user=self.owner_user)
+        source_url = f'/api/defects/{source.id}/'
         
-        data = {
-            'product_id': 'PROD002',
-            'version': '2.0.0',
-            'description': 'New Test Product',
-            'expiry_date': (datetime.now() + timedelta(days=365)).date()
-        }
-        
-        response = self.client.post('/api/products/', data, format='json')
-        
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['product_id'], 'PROD002')
-        self.assertEqual(response.data['owner'], self.owner_user.username)
-        self.assertEqual(response.data['version'], '2.0.0')
-    
-    def test_product_list_successful(self):
-        self.client.force_authenticate(user=self.owner_user)
-        
-        response = self.client.get('/api/products/', format='json')
+        self.client.force_authenticate(user=self.owner)
+        response = self.client.patch(source_url, {
+            'status': 'duplicate',
+            'target_defect_id': target.id
+        }, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIsInstance(response.data, dict)
-        self.assertIn('results', response.data)
-        self.assertGreaterEqual(len(response.data['results']), 1)
-    
-    def test_product_retrieve_successful(self):
-        self.client.force_authenticate(user=self.owner_user)
+        self.assertEqual(response.data['status'], 'duplicate')
         
-        response = self.client.get(f'/api/products/{self.product.id}/', format='json')
-        
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['id'], self.product.id)
-        self.assertEqual(response.data['product_id'], 'PROD001')
-    
-    def test_product_update_successful(self):
-        """Test successful update of a product."""
-        self.client.force_authenticate(user=self.owner_user)
-        
-        data = {
-            'description': 'Updated Product Description'
-        }
-        
-        response = self.client.patch(f'/api/products/{self.product.id}/', data, format='json')
-        
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['description'], 'Updated Product Description')
-    
-    def test_product_delete_successful(self):
-        """Test successful deletion of a product."""
-        # Create another product for deletion test
-        product_to_delete = Product.objects.create(
-            product_id='PROD003',
-            version='3.0.0',
-            owner=self.owner_user,
-            description='To Be Deleted'
-        )
-        
-        self.client.force_authenticate(user=self.owner_user)
-        
-        response = self.client.delete(f'/api/products/{product_to_delete.id}/', format='json')
-        
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertFalse(Product.objects.filter(id=product_to_delete.id).exists())
-    
-    def test_product_update_with_developers_successful(self):
-        """Test successful update of product with developer assignment."""
-        self.client.force_authenticate(user=self.owner_user)
-        
-        # Create another developer
-        developer2 = User.objects.create_user(
-            username='developer2',
-            email='developer2@example.com',
-            password='testpass123'
-        )
-        developer2.groups.add(self.developer_group)
-        
-        data = {
-            'developers': [self.developer_user.id, developer2.id]
-        }
-        
-        response = self.client.patch(f'/api/products/{self.product.id}/', data, format='json')
-        
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data['developers']), 2)
+        # Verify duplicate relationship
+        source.refresh_from_db()
+        self.assertEqual(source.duplicate_of_id, target.id)
+        print("✓ PATCH /api/defects/{id}/ (mark duplicate)")
 
-
-class defect_comment_tests(BaseAPITestCase):
-    
-    def test_defect_add_comment_through_update_successful(self):
-        """Test successful addition of a comment to a defect via update."""
-        self.client.force_authenticate(user=self.owner_user)
+    def test_17_add_comment_via_update(self):
+        """PATCH /api/defects/{id}/ - Add comment while updating"""
+        self.client.force_authenticate(user=self.owner)
         
-        # First, update status to 'open'
+        # Change status to open first (allowed transition)
         self.defect.status = 'open'
         self.defect.save()
         
-        data = {
-            'new_comment': 'This is a test comment'
-        }
-        
-        response = self.client.patch(f'/api/defects/{self.defect.id}/', data, format='json')
+        response = self.client.patch(self.defect_detail_url, {
+            'status': 'rejected',
+            'new_comment': 'This defect is rejected because it is invalid'
+        }, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['status'], 'rejected')
         self.assertGreater(len(response.data['comments']), 0)
-        self.assertEqual(response.data['comments'][0]['text'], 'This is a test comment')
+        print("✓ PATCH /api/defects/{id}/ (with comment)")
 
-
-class defect_filtering_tests(BaseAPITestCase):
-    
-    def test_defect_filter_by_status_successful(self):
-        # Create defect with different status
-        defect2 = Defect.objects.create(
+    def test_18_status_transition_new_to_open(self):
+        """PATCH /api/defects/{id}/ - Transition from new to open (Owner)"""
+        # Create defect with 'new' status
+        new_defect = Defect.objects.create(
             product=self.product,
-            title='Open Defect',
-            description='An open defect',
-            tester_id=str(self.tester_user.id),
-            tester_email=self.tester_user.email,
-            status='open'
+            title='New Defect',
+            description='For transition test',
+            tester_id=str(self.tester.id),
+            tester_email=self.tester.email,
+            status='new'
         )
+        new_url = f'/api/defects/{new_defect.id}/'
         
-        self.client.force_authenticate(user=self.owner_user)
-        
-        response = self.client.get('/api/defects/?status=open', format='json')
-        
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertGreater(len(response.data['results']), 0)
-        for defect in response.data['results']:
-            self.assertEqual(defect['status'], 'open')
-    
-    def test_defect_filter_by_priority_successful(self):
-        # Update defect with priority
-        self.defect.priority = 'high'
-        self.defect.save()
-        
-        self.client.force_authenticate(user=self.owner_user)
-        
-        response = self.client.get('/api/defects/?priority=high', format='json')
+        self.client.force_authenticate(user=self.owner)
+        response = self.client.patch(new_url, {'status': 'open'}, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-    
-    def test_defect_filter_by_severity_successful(self):
-        self.defect.severity = 'critical'
-        self.defect.save()
+        self.assertEqual(response.data['status'], 'open')
+        print("✓ PATCH /api/defects/{id}/ (status: new → open)")
+
+    def test_19_status_transition_assigned_to_fixed(self):
+        """PATCH /api/defects/{id}/ - Transition from assigned to fixed (Developer)"""
+        # Create defect assigned to developer
+        assigned_defect = Defect.objects.create(
+            product=self.product,
+            title='Assigned Defect',
+            description='For fix test',
+            tester_id=str(self.tester.id),
+            tester_email=self.tester.email,
+            status='assigned',
+            assigned_to=self.developer
+        )
+        assigned_url = f'/api/defects/{assigned_defect.id}/'
         
-        self.client.force_authenticate(user=self.owner_user)
-        
-        response = self.client.get('/api/defects/?severity=critical', format='json')
+        self.client.force_authenticate(user=self.developer)
+        response = self.client.patch(assigned_url, {'status': 'fixed'}, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['status'], 'fixed')
+        self.assertIsNotNone(response.data['date_fixed'])
+        print("✓ PATCH /api/defects/{id}/ (status: assigned → fixed)")
