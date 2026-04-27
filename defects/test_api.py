@@ -1,5 +1,4 @@
-'''
-Test automation run instructions:
+'Test automation run instructions:
 
 Preconditions:
 1) python/python3 intsalled
@@ -7,8 +6,7 @@ Preconditions:
 Run instructions:
 1) run "python manage.py test defects.test_api" for normal testing
 
-'''
-
+''
 from django.test import TestCase
 from django.contrib.auth.models import User, Group
 from rest_framework.test import APIClient
@@ -16,7 +14,6 @@ from rest_framework import status
 from datetime import datetime, timedelta
 from unittest.mock import patch
 from defects.models import Defect, Product, Comment, DefectHistory
-
 
 class BaseAPITestCase(TestCase):
     
@@ -70,7 +67,6 @@ class BaseAPITestCase(TestCase):
             tester_email=self.tester_user.email,
             status='new'
         )
-
 
 class DefectAPITests(BaseAPITestCase):
     
@@ -211,7 +207,7 @@ class DefectAPITests(BaseAPITestCase):
 
         response = self.client.patch(
             f'/api/defects/{self.defect.id}/',
-            {'status': 'duplicate', 'target_defect_id': target_defect.id},
+            {'status': 'duplicate', 'duplicate_of': target_defect.id},
             format='json'
         )
 
@@ -221,7 +217,7 @@ class DefectAPITests(BaseAPITestCase):
         target_defect.refresh_from_db()
 
         self.assertEqual(self.defect.status, 'duplicate')
-        self.assertEqual(self.defect.duplicate_of_id, target_defect.id)
+        self.assertEqual(self.defect.duplicate_of.id, target_defect.id)
         self.assertEqual(target_defect.tester_email, second_tester.email)
         self.assertEqual(self.defect.tester_email, self.tester_user.email)
 
@@ -345,7 +341,6 @@ class DefectAPITests(BaseAPITestCase):
             [self.tester_user.email, child_tester.email, grandchild_tester.email]
         )
 
-
 class ProductAPITests(BaseAPITestCase):
     
     def test_product_create_successful(self):
@@ -435,7 +430,6 @@ class ProductAPITests(BaseAPITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data['developers']), 2)
 
-
 class defect_comment_tests(BaseAPITestCase):
     
     def test_defect_add_comment_through_update_successful(self):
@@ -455,7 +449,6 @@ class defect_comment_tests(BaseAPITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertGreater(len(response.data['comments']), 0)
         self.assertEqual(response.data['comments'][0]['text'], 'This is a test comment')
-
 
 class defect_filtering_tests(BaseAPITestCase):
     
