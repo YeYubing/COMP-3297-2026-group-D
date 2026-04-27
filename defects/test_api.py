@@ -1,27 +1,27 @@
 # defects/test_api.py
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.contrib.auth.models import User, Group
 from rest_framework.test import APIClient
 from rest_framework import status
 from defects.models import Defect, Product
 from django_tenants.utils import tenant_context
 from tenants.models import Client
-from django.urls import reverse
+from django_tenants.test.cases import TenantTestCase
+from django_tenants.test.client import TenantClient
 
 
-class BaseAPITestCase(TestCase):
+class BaseAPITestCase(TenantTestCase):  # Change to TenantTestCase
+    """
+    Use TenantTestCase instead of TestCase for multi-tenant testing
+    """
     
     def setUp(self):
-        self.tenant, _ = Client.objects.get_or_create(
-            schema_name='standard',
-            defaults={'name': 'Standard Tenant'}
-        )
-
-        self.client = APIClient()
+        # TenantTestCase automatically creates a tenant
+        self.tenant = self.tenant  # This is automatically provided by TenantTestCase
         
-        # Set tenant header for all requests
-        self.client.defaults['HTTP_X_TENANT'] = self.tenant.schema_name
-
+        # Use TenantClient instead of APIClient
+        self.client = TenantClient(self.tenant)
+        
         with tenant_context(self.tenant):
             # Create groups
             self.tester_group, _ = Group.objects.get_or_create(name='Tester')
@@ -74,25 +74,14 @@ class BaseAPITestCase(TestCase):
 
 class DefectAPITests(BaseAPITestCase):
     
-    def test_debug_urls(self):
-        """Debug test to see what URLs are available"""
-        with tenant_context(self.tenant):
-            self.client.force_authenticate(user=self.tester_user)
-            
-            # Try to get the list endpoint
-            response = self.client.get('/api/defects/')
-            print(f"\nGET /api/defects/ - Status: {response.status_code}")
-            
-            if response.status_code == 404:
-                # Try without the slash
-                response = self.client.get('/api/defects')
-                print(f"GET /api/defects - Status: {response.status_code}")
-            
-            print(f"Response content: {response.content}")
-    
     def test_defect_create_successful(self):
         with tenant_context(self.tenant):
-            self.client.force_authenticate(user=self.tester_user)
+            # TenantClient doesn't have force_authenticate, so we need to login
+            login_successful = self.client.login(
+                username='tester1', 
+                password='testpass123'
+            )
+            self.assertTrue(login_successful)
             
             data = {
                 'product': self.product.id,
@@ -103,18 +92,14 @@ class DefectAPITests(BaseAPITestCase):
             
             response = self.client.post('/api/defects/', data, format='json')
             
-            print(f"\nPOST Status: {response.status_code}")
-            print(f"POST Content: {response.content}")
+            print(f"\nStatus: {response.status_code}")
+            print(f"Content: {response.content}")
             
             if response.status_code == 404:
-                # Try alternative URL patterns
-                alt_urls = ['/api/defects', '/defects/', '/defects']
-                for url in alt_urls:
-                    alt_response = self.client.post(url, data, format='json')
-                    print(f"Trying {url} - Status: {alt_response.status_code}")
-                    if alt_response.status_code == 201:
-                        response = alt_response
-                        break
+                # Try without the trailing slash
+                response = self.client.post('/api/defects', data, format='json')
+                print(f"Without slash - Status: {response.status_code}")
+                print(f"Content: {response.content}")
             
             self.assertEqual(response.status_code, status.HTTP_201_CREATED)
             self.assertEqual(response.data['title'], 'New Test Defect')
