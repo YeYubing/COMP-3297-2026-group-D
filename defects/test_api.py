@@ -10,37 +10,31 @@ Run instructions:
 
 '''
 
-from django.test import TestCase, override_settings
+from django.test import TestCase, TransactionTestCase
 from django.contrib.auth.models import User, Group
 from rest_framework.test import APIClient
 from rest_framework import status
 from datetime import datetime, timedelta
 from unittest.mock import patch
-from django_tenants.test.cases import TenantTestCase
-from tenants.models import Client, Domain
+from django_tenants.utils import get_tenant_model
 from defects.models import Defect, Product, Comment, DefectHistory
 
+Client = get_tenant_model()
 
-class BaseTenantTestCase(TenantTestCase):
-    """Base test case for multi-tenant tests"""
+
+class BaseAPITestCase(TransactionTestCase):
+    """Base test case for tenant-aware tests"""
     
     def setUp(self):
-        super().setUp()
-        self.client = APIClient()
-        
-        # Create tenant
+        # Create tenant in the public schema
         self.tenant = Client.objects.create(
             name='Test Client',
-            schema_name='testclient'
+            schema_name='test_tenant'
         )
-        self.domain = Domain.objects.create(
-            domain='testclient.test.com',
-            tenant=self.tenant,
-            is_primary=True
-        )
-        
-        # Set the tenant for this test
+        # Set this tenant as the context for the test
         self.tenant.set_connection()
+        
+        self.client = APIClient()
         
         # Create groups
         self.tester_group, _ = Group.objects.get_or_create(name='Tester')
@@ -90,8 +84,15 @@ class BaseTenantTestCase(TenantTestCase):
             status='new'
         )
 
+    def tearDown(self):
+        # Clean up tenant
+        try:
+            self.tenant.delete()
+        except:
+            pass
 
-class DefectAPITests(BaseTenantTestCase):
+
+class DefectAPITests(BaseAPITestCase):
     
     def test_defect_create_successful(self):
         self.client.force_authenticate(user=self.tester_user)
@@ -365,7 +366,7 @@ class DefectAPITests(BaseTenantTestCase):
         )
 
 
-class ProductAPITests(BaseTenantTestCase):
+class ProductAPITests(BaseAPITestCase):
     
     def test_product_create_successful(self):
         self.client.force_authenticate(user=self.owner_user)
@@ -455,7 +456,7 @@ class ProductAPITests(BaseTenantTestCase):
         self.assertEqual(len(response.data['developers']), 2)
 
 
-class defect_comment_tests(BaseTenantTestCase):
+class defect_comment_tests(BaseAPITestCase):
     
     def test_defect_add_comment_through_update_successful(self):
         """Test successful addition of a comment to a defect via update."""
@@ -476,7 +477,7 @@ class defect_comment_tests(BaseTenantTestCase):
         self.assertEqual(response.data['comments'][0]['text'], 'This is a test comment')
 
 
-class defect_filtering_tests(BaseTenantTestCase):
+class defect_filtering_tests(BaseAPITestCase):
     
     def test_defect_filter_by_status_successful(self):
         # Create defect with different status
